@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>临床试验查询系统</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { 
+            margin: 0; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .line-clamp-2 { 
+            display: -webkit-box; 
+            -webkit-line-clamp: 2; 
+            -webkit-box-orient: vertical; 
+            overflow: hidden; 
+        }
+        @media (max-width: 768px) {
+            .mobile-friendly { font-size: 14px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useMemo } = React;
+        
+        // 图标组件
+        const Search = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>;
+        const Filter = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>;
+        const Phone = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>;
+        const Mail = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>;
+        const MapPin = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>;
+        const Calendar = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
+        const Users = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
+        const Pill = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/></svg>;
+        const FileText = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>;
+        const Share = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>;
+
+        // 临床试验数据
+        const TRIAL_DATA = [
+          {
+            id: 'CT001',
+            title: '非小细胞肺癌靶向治疗III期临床研究',
+            disease: '肺癌',
+            diseaseCategory: '肿瘤科',
+            drug: 'XX-1234',
+            drugCategory: '靶向药物',
+            phase: 'III期',
+            status: '招募中',
+            description: '评估XX-1234在晚期非小细胞肺癌患者中的疗效和安全性',
+            criteria: '18-75岁，经组织学确诊的NSCLC，EGFR突变阳性',
+            recruitNumber: 120,
+            startDate: '2024-03',
+            contact: {
+              name: '李医生',
+              phone: '010-12345678',
+              email: 'dr.li@hospital.com'
+            },
+            location: '北京市某医院肿瘤中心'
+          },
+          {
+            id: 'CT002',
+            title: '2型糖尿病新型降糖药物II期临床试验',
+            disease: '2型糖尿病',
+            diseaseCategory: '内分泌科',
+            drug: 'DM-5678',
+            drugCategory: '降糖药物',
+            phase: 'II期',
+            status: '招募中',
+            description: '评估DM-5678在2型糖尿病患者中的降糖效果',
+            criteria: '40-70岁，确诊2型糖尿病超过1年，HbA1c 7.5-10%',
+            recruitNumber: 80,
+            startDate: '2024-05',
+            contact: {
+              name: '王医生',
+              phone: '010-23456789',
+              email: 'dr.wang@hospital.com'
+            },
+            location: '北京市某医院内分泌科'
+          },
+          {
+            id: 'CT003',
+            title: '帕金森病基因治疗临床研究',
+            disease: '帕金森病',
+            diseaseCategory: '神经内科',
+            drug: 'PD-GT-01',
+            drugCategory: '基因治疗',
+            phase: 'I/II期',
+            status: '招募中',
+            description: '基因治疗在早中期帕金森病中的安全性和初步疗效研究',
+            criteria: '50-75岁，确诊帕金森病3-10年，Hoehn-Yahr分级2-3级',
+            recruitNumber: 30,
+            startDate: '2024-06',
+            contact: {
+              name: '张医生',
+              phone: '010-34567890',
+              email: 'dr.zhang@hospital.com'
+            },
+            location: '北京市某医院神经内科'
+          },
+          {
+            id: 'CT004',
+            title: '乳腺癌免疫治疗联合化疗研究',
+            disease: '乳腺癌',
+            diseaseCategory: '肿瘤科',
+            drug: 'IMM-789',
+            drugCategory: '免疫治疗',
+            phase: 'III期',
+            status: '招募中',
+            description: '免疫检查点抑制剂联合化疗在三阴性乳腺癌中的应用',
+            criteria: '18-70岁，三阴性乳腺癌，未接受过系统治疗',
+            recruitNumber: 150,
+            startDate: '2024-02',
+            contact: {
+              name: '赵医生',
+              phone: '010-45678901',
+              email: 'dr.zhao@hospital.com'
+            },
+            location: '北京市某医院肿瘤中心'
+          },
+          {
+            id: 'CT005',
+            title: '慢性心力衰竭新药临床试验',
+            disease: '心力衰竭',
+            diseaseCategory: '心内科',
+            drug: 'HF-2024',
+            drugCategory: '心血管药物',
+            phase: 'II期',
+            status: '招募中',
+            description: '新型心肌收缩力增强剂在慢性心衰患者中的疗效评估',
+            criteria: '45-80岁，NYHA心功能II-III级，LVEF≤40%',
+            recruitNumber: 60,
+            startDate: '2024-04',
+            contact: {
+              name: '陈医生',
+              phone: '010-56789012',
+              email: 'dr.chen@hospital.com'
+            },
+            location: '北京市某医院心内科'
+          }
+        ];
+
+        const ClinicalTrialFinder = () => {
+          const [searchTerm, setSearchTerm] = useState('');
+          const [selectedDisease, setSelectedDisease] = useState('全部');
+          const [selectedDrug, setSelectedDrug] = useState('全部');
+          const [selectedPhase, setSelectedPhase] = useState('全部');
+          const [selectedStatus, setSelectedStatus] = useState('全部');
+          const [selectedTrial, setSelectedTrial] = useState(null);
+          const [showShare, setShowShare] = useState(false);
+
+          const diseases = ['全部', ...new Set(TRIAL_DATA.map(t => t.disease))];
+          const drugs = ['全部', ...new Set(TRIAL_DATA.map(t => t.drugCategory))];
+          const phases = ['全部', ...new Set(TRIAL_DATA.map(t => t.phase))];
+          const statuses = ['全部', ...new Set(TRIAL_DATA.map(t => t.status))];
+
+          const filteredTrials = useMemo(() => {
+            return TRIAL_DATA.filter(trial => {
+              const matchSearch = searchTerm === '' || 
+                trial.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                trial.disease.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                trial.drug.toLowerCase().includes(searchTerm.toLowerCase());
+              
+              const matchDisease = selectedDisease === '全部' || trial.disease === selectedDisease;
+              const matchDrug = selectedDrug === '全部' || trial.drugCategory === selectedDrug;
+              const matchPhase = selectedPhase === '全部' || trial.phase === selectedPhase;
+              const matchStatus = selectedStatus === '全部' || trial.status === selectedStatus;
+
+              return matchSearch && matchDisease && matchDrug && matchPhase && matchStatus;
+            });
+          }, [searchTerm, selectedDisease, selectedDrug, selectedPhase, selectedStatus]);
+
+          const handleShare = () => {
+            if (navigator.share) {
+              navigator.share({
+                title: '临床试验查询系统',
+                text: '为您匹配合适的临床试验项目',
+                url: window.location.href
+              }).catch(() => setShowShare(true));
+            } else {
+              setShowShare(true);
+            }
+          };
+
+          return (
+            <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 mobile-friendly">
+              <header className="bg-white shadow-sm border-b border-blue-100 sticky top-0 z-40">
+                <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-blue-900">临床试验查询</h1>
+                      <p className="text-xs sm:text-sm text-gray-600 mt-1">为您匹配合适的临床试验项目</p>
+                    </div>
+                    <button 
+                      onClick={handleShare}
+                      className="ml-3 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg flex items-center gap-2 text-sm transition-colors"
+                    >
+                      <Share />
+                      <span className="hidden sm:inline">分享</span>
+                    </button>
+                  </div>
+                </div>
+              </header>
+
+              <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+                <div className="bg-white rounded-lg shadow-md p-3 sm:p-6 mb-4 sm:mb-6">
+                  <div className="mb-4">
+                    <div className="relative">
+                      <div className="absolute left-3 top-3 text-gray-400"><Search /></div>
+                      <input
+                        type="text"
+                        placeholder="搜索病种、药物名称..."
+                        className="w-full pl-10 pr-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div>
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">
+                        <span className="inline-flex items-center"><Filter /> <span className="ml-1">病种筛选</span></span>
+                      </label>
+                      <select
+                        className="w-full px-2 sm:px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                        value={selectedDisease}
+                        onChange={(e) => setSelectedDisease(e.target.value)}
+                      >
+                        {diseases.map(disease => (
+                          <option key={disease} value={disease}>{disease}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">药物筛选</label>
+                      <select
+                        className="w-full px-2 sm:px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                        value={selectedDrug}
+                        onChange={(e) => setSelectedDrug(e.target.value)}
+                      >
+                        {drugs.map(drug => (
+                          <option key={drug} value={drug}>{drug}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">试验阶段</label>
+                      <select
+                        className="w-full px-2 sm:px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                        value={selectedPhase}
+                        onChange={(e) => setSelectedPhase(e.target.value)}
+                      >
+                        {phases.map(phase => (
+                          <option key={phase} value={phase}>{phase}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">招募状态</label>
+                      <select
+                        className="w-full px-2 sm:px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                        value={selectedStatus}
+                        onChange={(e) => setSelectedStatus(e.target.value)}
+                      >
+                        {statuses.map(status => (
+                          <option key={status} value={status}>{status}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 text-xs sm:text-sm text-gray-600 text-center">
+                    共找到 <span className="font-semibold text-blue-600">{filteredTrials.length}</span> 个临床试验项目
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:gap-6">
+                  {filteredTrials.map(trial => (
+                    <div
+                      key={trial.id}
+                      className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer p-4 sm:p-6"
+                      onClick={() => setSelectedTrial(trial)}
+                    >
+                      <div className="flex justify-between items-start mb-3">
+                        <h3 className="text-base sm:text-lg font-semibold text-gray-900 flex-1 pr-2">
+                          {trial.title}
+                        </h3>
+                        <span className={`px-2 sm:px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
+                          trial.status === '招募中' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {trial.status}
+                        </span>
+                      </div>
+
+                      <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm text-gray-600 mb-3">
+                        <div className="flex items-center">
+                          <span className="mr-2 text-blue-500"><FileText /></span>
+                          <span className="font-medium">{trial.disease}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <span className="mr-2 text-purple-500"><Pill /></span>
+                          <span>{trial.drugCategory}</span>
+                          <span className="mx-2">·</span>
+                          <span>{trial.phase}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <span className="mr-2 text-orange-500"><Users /></span>
+                          <span>招募 {trial.recruitNumber} 人</span>
+                        </div>
+                      </div>
+
+                      <p className="text-xs sm:text-sm text-gray-700 mb-3 line-clamp-2">
+                        {trial.description}
+                      </p>
+
+                      <button className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 sm:py-2.5 rounded-lg transition-colors text-sm sm:text-base font-medium">
+                        查看详情
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {filteredTrials.length === 0 && (
+                  <div className="text-center py-12 bg-white rounded-lg shadow-md">
+                    <p className="text-gray-500 text-base sm:text-lg">未找到符合条件的临床试验</p>
+                    <p className="text-gray-400 text-sm mt-2">请尝试调整筛选条件</p>
+                  </div>
+                )}
+              </div>
+
+              {selectedTrial && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50" onClick={() => setSelectedTrial(null)}>
+                  <div className="bg-white rounded-t-2xl sm:rounded-lg max-w-2xl w-full max-h-[85vh] sm:max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                    <div className="p-4 sm:p-6">
+                      <div className="flex justify-between items-start mb-4">
+                        <h2 className="text-lg sm:text-2xl font-bold text-gray-900 flex-1 pr-2">
+                          {selectedTrial.title}
+                        </h2>
+                        <button
+                          onClick={() => setSelectedTrial(null)}
+                          className="text-gray-400 hover:text-gray-600 text-3xl leading-none"
+                        >
+                          ×
+                        </button>
+                      </div>
+
+                      <div className="space-y-3 sm:space-y-4 text-sm sm:text-base">
+                        <div className="flex items-center flex-wrap gap-2">
+                          <span className={`px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${
+                            selectedTrial.status === '招募中' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                          }`}>
+                            {selectedTrial.status}
+                          </span>
+                          <span className="px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-blue-100 text-blue-800">
+                            {selectedTrial.phase}
+                          </span>
+                        </div>
+
+                        <div className="border-t pt-3">
+                          <h3 className="font-semibold text-gray-900 mb-1.5 text-sm sm:text-base">试验编号</h3>
+                          <p className="text-gray-700">{selectedTrial.id}</p>
+                        </div>
+
+                        <div className="border-t pt-3">
+                          <h3 className="font-semibold text-gray-900 mb-1.5 text-sm sm:text-base">疾病信息</h3>
+                          <p className="text-gray-700">{selectedTrial.disease}</p>
+                        </div>
+
+                        <div className="border-t pt-3">
+                          <h3 className="font-semibold text-gray-900 mb-1.5 text-sm sm:text-base">试验药物</h3>
+                          <p className="text-gray-700">{selectedTrial.drug} ({selectedTrial.drugCategory})</p>
+                        </div>
+
+                        <div className="border-t pt-3">
+                          <h3 className="font-semibold text-gray-900 mb-1.5 text-sm sm:text-base">研究描述</h3>
+                          <p className="text-gray-700">{selectedTrial.description}</p>
+                        </div>
+
+                        <div className="border-t pt-3">
+                          <h3 className="font-semibold text-gray-900 mb-1.5 text-sm sm:text-base">入组条件</h3>
+                          <p className="text-gray-700">{selectedTrial.criteria}</p>
+                        </div>
+
+                        <div className="border-t pt-3">
+                          <h3 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">招募信息</h3>
+                          <div className="flex items-center text-gray-700 mb-2">
+                            <span className="mr-2 text-orange-500"><Users /></span>
+                            计划招募：{selectedTrial.recruitNumber}人
+                          </div>
+                          <div className="flex items-center text-gray-700">
+                            <span className="mr-2 text-green-500"><Calendar /></span>
+                            开始时间：{selectedTrial.startDate}
+                          </div>
+                        </div>
+
+                        <div className="border-t pt-3">
+                          <h3 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">联系方式</h3>
+                          <div className="space-y-2">
+                            <div className="flex items-start text-gray-700">
+                              <span className="mr-2 text-red-500 mt-0.5"><MapPin /></span>
+                              <span className="flex-1">{selectedTrial.location}</span>
+                            </div>
+                            <div className="flex items-center text-gray-700">
+                              <span className="mr-2 text-blue-500"><Phone /></span>
+                              {selectedTrial.contact.name}：{selectedTrial.contact.phone}
+                            </div>
+                            <div className="flex items-center text-gray-700">
+                              <span className="mr-2 text-purple-500"><Mail /></span>
+                              <span className="break-all">{selectedTrial.contact.email}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="border-t pt-3 bg-blue-50 p-3 sm:p-4 rounded-lg">
+                          <p className="text-xs sm:text-sm text-blue-900">
+                            <strong>温馨提示：</strong>请联系上述医生进行详细咨询，确认是否符合入组条件。参加临床试验是自愿的，您有权随时退出。
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row gap-2 sm:gap-3">
+                        <button
+                          onClick={() => setSelectedTrial(null)}
+                          className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-3 rounded-lg transition-colors text-sm sm:text-base font-medium order-2 sm:order-1"
+                        >
+                          关闭
+                        </button>
+                        <button
+                          onClick={() => {
+                            window.location.href = `tel:${selectedTrial.contact.phone}`;
+                          }}
+                          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg transition-colors text-sm sm:text-base font-medium order-1 sm:order-2"
+                        >
+                          立即拨打
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {showShare && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => setShowShare(false)}>
+                  <div className="bg-white rounded-lg p-6 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+                    <h3 className="text-lg font-bold text-gray-900 mb-4">分享方式</h3>
+                    <div className="space-y-3 text-sm">
+                      <button
+                        onClick={() => {
+                          const url = window.location.href;
+                          if (navigator.clipboard) {
+                            navigator.clipboard.writeText(url);
+                            alert('链接已复制！');
+                          } else {
+                            alert(`请复制链接：${url}`);
+                          }
+                        }}
+                        className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg transition-colors"
+                      >
+                        📋 复制链接发送微信
+                      </button>
+                      <p className="text-gray-600 text-xs text-center px-4">
+                        复制链接后，在微信中粘贴发送
+                      </p>
+                      <button
+                        onClick={() => setShowShare(false)}
+                        className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 rounded-lg transition-colors mt-2"
+                      >
+                        关闭
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        };
+
+        ReactDOM.render(<ClinicalTrialFinder />, document.getElementById('root'));
+    </script>
+</body>
+</html>
